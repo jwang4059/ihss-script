@@ -2,9 +2,11 @@
   "name": "ihss-script",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/index.mjs",
+    "build": "tsc",
+    "watch": "tsc -w",
     "prepare": "husky install"
   },
   "repository": {
@@ -34,5 +36,8 @@
   "lint-staged": {
     "*.js": "eslint --cache --fix",
     "*.{js,css,md}": "prettier --write"
+  },
+  "dependencies": {
+    "puppeteer": "^19.8.5"
   }
 }
