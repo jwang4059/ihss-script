@@ -10,9 +10,8 @@ const screenshot = async (page: Page, filename: string) => {
 };
 
 const scrollIntoView = async (page: Page, selector: string) => {
-	await page.evaluate((s) => {
-		document.querySelector(s)?.scrollIntoView();
-	}, selector);
+	const element = await page.waitForSelector(selector);
+	await element?.evaluate((el) => el.scrollIntoView());
 };
 
 (async () => {
@@ -29,25 +28,22 @@ const scrollIntoView = async (page: Page, selector: string) => {
 	await page.setViewport({ width: 1080, height: 1024 });
 	await screenshot(page, "load_initial_page");
 
-	// Enter user credentials
+	// Input user credentials
 	await scrollIntoView(page, "#input-user-name");
 	await page.type("#input-user-name", process.env.IHSS_USERNAME as string);
 	await page.type("#input-password", process.env.IHSS_PASSWORD as string);
 	await screenshot(page, "input_user_credentials");
 
-	// // Wait and click on first result
-	// const searchResultSelector = ".search-box__link";
-	// await page.waitForSelector(searchResultSelector);
-	// await page.click(searchResultSelector);
+	// Login
+	await page.waitForSelector("#login");
+	await page.click("#login");
+	await screenshot(page, "login");
 
-	// // Locate the full title with a unique string
-	// const textSelector = await page.waitForSelector(
-	// 	"text/Customize and automate"
-	// );
-	// const fullTitle = await textSelector?.evaluate((el) => el.textContent);
-
-	// // Print the full title
-	// console.log('The title of this blog post is "%s".', fullTitle);
+	// Logout
+	await page.waitForSelector('[aria-label="Logout"]');
+	await page.click('[aria-label="Logout"]');
+	await screenshot(page, "logout");
+	console.log("Logged out successfully.");
 
 	await browser.close();
 })();
