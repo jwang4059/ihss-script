@@ -1,31 +1,53 @@
-import puppeteer from "puppeteer";
+import * as dotenv from "dotenv";
+import puppeteer, { Page } from "puppeteer";
+
+dotenv.config();
+
+const DEBUG = true;
+
+const screenshot = async (page: Page, filename: string) => {
+	await page.screenshot({ path: `./logs/screenshots/${filename}.png` });
+};
+
+const scrollIntoView = async (page: Page, selector: string) => {
+	await page.evaluate((s) => {
+		document.querySelector(s)?.scrollIntoView();
+	}, selector);
+};
 
 (async () => {
-	const browser = await puppeteer.launch({ headless: false });
+	const puppeteerLaunchOptions = DEBUG
+		? { headless: false, slowMo: 250 }
+		: undefined;
+
+	const browser = await puppeteer.launch(puppeteerLaunchOptions);
 	const page = await browser.newPage();
 
-	await page.goto("https://developer.chrome.com/");
+	await page.goto("https://etimesheets.ihss.ca.gov/login");
 
 	// Set screen size
 	await page.setViewport({ width: 1080, height: 1024 });
-	await page.screenshot({ path: "./logs/screenshots/test.png" });
+	await screenshot(page, "load_initial_page");
 
-	// Type into search box
-	await page.type(".search-box__input", "automate beyond recorder");
+	// Enter user credentials
+	await scrollIntoView(page, "#input-user-name");
+	await page.type("#input-user-name", process.env.IHSS_USERNAME as string);
+	await page.type("#input-password", process.env.IHSS_PASSWORD as string);
+	await screenshot(page, "input_user_credentials");
 
-	// Wait and click on first result
-	const searchResultSelector = ".search-box__link";
-	await page.waitForSelector(searchResultSelector);
-	await page.click(searchResultSelector);
+	// // Wait and click on first result
+	// const searchResultSelector = ".search-box__link";
+	// await page.waitForSelector(searchResultSelector);
+	// await page.click(searchResultSelector);
 
-	// Locate the full title with a unique string
-	const textSelector = await page.waitForSelector(
-		"text/Customize and automate"
-	);
-	const fullTitle = await textSelector?.evaluate((el) => el.textContent);
+	// // Locate the full title with a unique string
+	// const textSelector = await page.waitForSelector(
+	// 	"text/Customize and automate"
+	// );
+	// const fullTitle = await textSelector?.evaluate((el) => el.textContent);
 
-	// Print the full title
-	console.log('The title of this blog post is "%s".', fullTitle);
+	// // Print the full title
+	// console.log('The title of this blog post is "%s".', fullTitle);
 
 	await browser.close();
 })();
