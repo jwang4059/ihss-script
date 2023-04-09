@@ -1,41 +1,10 @@
 import * as dotenv from "dotenv";
-import fs from "fs";
 import puppeteer, { Page } from "puppeteer";
+import { beforeAll, handleLogging, screenshot, logout } from "./functions.js";
 
 dotenv.config();
 
-const DEBUG = true;
-
-const dir = `./logs/${new Date().toISOString().slice(0, 10)}`;
-
-const beforeAll = () => {
-	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-};
-
-const getTime = () => new Date().getTime();
-
-const handleLogging = (page: Page) => {
-	page.on("console", (message) =>
-		fs.appendFile(
-			`${dir}/console.txt`,
-			`${getTime()} ${message
-				.type()
-				.substring(0, 3)
-				.toUpperCase()} ${message.text()}\n`,
-			(err) => {
-				if (err) {
-					console.log(err);
-				}
-			}
-		)
-	);
-};
-
-const screenshot = async (page: Page, filename: string) => {
-	await page.screenshot({
-		path: `${dir}/${getTime()}_${filename}.png`,
-	});
-};
+const DEBUG = false;
 
 const scrollIntoView = async (page: Page, selector: string) => {
 	const element = await page.waitForSelector(selector);
@@ -175,10 +144,7 @@ const scrollIntoView = async (page: Page, selector: string) => {
 	// Fill out form for time entry
 
 	// Logout
-	await page.waitForSelector('[aria-label="Logout"]');
-	await page.click('[aria-label="Logout"]');
-	await screenshot(page, "logout");
-	console.log("Logged out successfully.");
+	await logout(page);
 
 	await browser.close();
 })();

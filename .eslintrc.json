@@ -9,5 +9,12 @@
 	"parserOptions": { "project": "./tsconfig.json" },
 	"plugins": ["@typescript-eslint"],
 	"root": true,
-	"rules": { "no-console": "off" }
+	"rules": { "no-console": "off" },
+	"settings": {
+		"import/resolver": {
+			"node": {
+				"extensions": [".js", ".jsx", ".ts", ".tsx"]
+			}
+		}
+	}
 }
