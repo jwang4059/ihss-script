@@ -1,15 +1,18 @@
 import * as dotenv from "dotenv";
-import puppeteer, { Page } from "puppeteer";
-import { beforeAll, handleLogging, screenshot, logout } from "./functions.js";
+import puppeteer from "puppeteer";
+import {
+	beforeAll,
+	handleLogging,
+	screenshot,
+	scrollIntoView,
+	login,
+	logout,
+	fillTimeEntry,
+} from "./functions.js";
 
 dotenv.config();
 
-const DEBUG = false;
-
-const scrollIntoView = async (page: Page, selector: string) => {
-	const element = await page.waitForSelector(selector);
-	await element?.evaluate((el) => el.scrollIntoView());
-};
+const DEBUG = true;
 
 (async () => {
 	beforeAll();
@@ -28,19 +31,11 @@ const scrollIntoView = async (page: Page, selector: string) => {
 	await page.setViewport({ width: 1080, height: 1024 });
 	await screenshot(page, "display_ihss_login_page");
 
-	// Input user credentials
-	await scrollIntoView(page, "#input-user-name");
-	await page.type("#input-user-name", process.env.IHSS_USERNAME as string);
-	await page.type("#input-password", process.env.IHSS_PASSWORD as string);
-	await screenshot(page, "input_user_credentials");
-
-	// Login
-	await page.waitForSelector("#login");
-	await page.click("#login");
+	await login(page);
 
 	// Select Time Entry
 	await screenshot(page, "display_provider_home_page");
-	await page.waitForSelector("#timeentry");
+	await page.waitForSelector("#timecardEntry");
 	await page.click("#timecardEntry");
 
 	// Get Recipients
@@ -121,6 +116,8 @@ const scrollIntoView = async (page: Page, selector: string) => {
 		return timeEntries.map((el) => el.id);
 	}, workweekIds[0]);
 
+	await scrollIntoView(page, `#${timeEntryIds[0]}`);
+
 	// Get input ids
 	const inputIds = await page.evaluate((id: string) => {
 		const timeEntry = document.querySelector(`#${id}`);
@@ -130,11 +127,13 @@ const scrollIntoView = async (page: Page, selector: string) => {
 
 		// Check if you worked that day first before grabbing ids
 
-		const hoursId = timeEntry?.querySelector("[id^='hours']")?.id;
-		const minutesId = timeEntry?.querySelector("[id^='minutes']")?.id;
-		const startId = timeEntry?.querySelector("[id^='starttime']")?.id;
-		const endId = timeEntry?.querySelector("[id^='endtime']")?.id;
-		const locationId = timeEntry?.querySelector("[id^='locationSelect']")?.id;
+		const hoursId = timeEntry?.querySelector("input[id^='hours']")?.id;
+		const minutesId = timeEntry?.querySelector("input[id^='minutes']")?.id;
+		const startId = timeEntry?.querySelector("input[id^='starttime']")?.id;
+		const endId = timeEntry?.querySelector("input[id^='endtime']")?.id;
+		const locationId = timeEntry?.querySelector(
+			"mat-select[id^='locationSelect']"
+		)?.id;
 
 		return { hoursId, minutesId, startId, endId, locationId };
 	}, timeEntryIds[0]);
@@ -142,6 +141,13 @@ const scrollIntoView = async (page: Page, selector: string) => {
 	console.log(inputIds);
 
 	// Fill out form for time entry
+	await fillTimeEntry(page, {
+		hours: { id: inputIds.hoursId, text: "2" },
+		minutes: { id: inputIds.minutesId, text: "00" },
+		start: { id: inputIds.startId, text: "09:00AM" },
+		end: { id: inputIds.endId, text: "11:00AM" },
+		location: { id: inputIds.locationId, text: "home" },
+	});
 
 	// Logout
 	await logout(page);
