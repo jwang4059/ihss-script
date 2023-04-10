@@ -91,9 +91,49 @@ const selectLocation = async (
 	await page.click(`#${optionId}`);
 };
 
+const getTimeEntryIds = async (page: Page, workweekId: string) => {
+	const timeEntryIds = await page.evaluate((id: string) => {
+		const workweek = Array.from(
+			document.querySelectorAll("mat-expansion-panel")
+		).find((el) => el.querySelector(`[id='${id}']`));
+		const timeEntries = workweek
+			? Array.from(workweek.querySelectorAll("[id^='evv-time-entry']")).filter(
+					(el) => el.querySelector("input")
+			  )
+			: [];
+		return timeEntries.map((el) => el.id);
+	}, workweekId);
+
+	return timeEntryIds;
+};
+
+const getTimeEntryInputIds = async (page: Page, timeEntryId: string) => {
+	// Get input ids
+	const inputIds = await page.evaluate((id: string) => {
+		const timeEntry = document.querySelector(`#${id}`);
+		// const timeEntryDate = timeEntry
+		// 	?.querySelector<HTMLElement>("[id^='workweekdays']")
+		// 	?.innerText.split(/\s+/)[1];
+
+		// Check if you worked that day first before grabbing ids
+
+		const hoursId = timeEntry?.querySelector("input[id^='hours']")?.id;
+		const minutesId = timeEntry?.querySelector("input[id^='minutes']")?.id;
+		const startId = timeEntry?.querySelector("input[id^='starttime']")?.id;
+		const endId = timeEntry?.querySelector("input[id^='endtime']")?.id;
+		const locationId = timeEntry?.querySelector(
+			"mat-select[id^='locationSelect']"
+		)?.id;
+
+		return { hoursId, minutesId, startId, endId, locationId };
+	}, timeEntryId);
+
+	return inputIds;
+};
+
 type InputType = { id?: string; text?: string };
 
-const fillTimeEntry = async (
+const fillTimeEntryInputs = async (
 	page: Page,
 	{
 		hours,
@@ -114,7 +154,39 @@ const fillTimeEntry = async (
 	await enterInput(page, `#${start.id}`, start.text);
 	await enterInput(page, `#${end.id}`, end.text);
 	await selectLocation(page, location.id, location.text);
-	await screenshot(page, "fill_time_entry");
+};
+
+const fillTimeEntry = async (page: Page, timeEntryId: string) => {
+	// Scroll to time entry
+	await scrollIntoView(page, `#${timeEntryId}`);
+
+	// Get input ids
+	const inputIds = await getTimeEntryInputIds(page, timeEntryId);
+
+	// Fill out form for time entry
+	await fillTimeEntryInputs(page, {
+		hours: { id: inputIds.hoursId, text: "2" },
+		minutes: { id: inputIds.minutesId, text: "00" },
+		start: { id: inputIds.startId, text: "09:00AM" },
+		end: { id: inputIds.endId, text: "11:00AM" },
+		location: { id: inputIds.locationId, text: "home" },
+	});
+
+	await screenshot(page, `filled_timeEntry_${timeEntryId}`);
+};
+
+const fillWorkweek = async (page: Page, workweekId: string) => {
+	// Toggle workweek panel
+	await page.click(`#${workweekId}`);
+	await screenshot(page, `toggle_workweek_${workweekId}`);
+
+	// Fill time entries
+	const timeEntryIds = await getTimeEntryIds(page, workweekId);
+	for (const timeEntryId of timeEntryIds) {
+		await fillTimeEntry(page, timeEntryId);
+	}
+
+	await screenshot(page, `filled_workweek_${workweekId}`);
 };
 
 export {
@@ -124,7 +196,5 @@ export {
 	scrollIntoView,
 	login,
 	logout,
-	enterInput,
-	selectLocation,
-	fillTimeEntry,
+	fillWorkweek,
 };

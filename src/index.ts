@@ -4,10 +4,9 @@ import {
 	beforeAll,
 	handleLogging,
 	screenshot,
-	scrollIntoView,
 	login,
 	logout,
-	fillTimeEntry,
+	fillWorkweek,
 } from "./functions.js";
 
 dotenv.config();
@@ -84,7 +83,7 @@ const DEBUG = true;
 			(el) =>
 				new Date(
 					(el as HTMLElement).innerText.split("-")[0].trim()
-				).getDate() === 1
+				).getDate() === 16
 		);
 		return target?.id;
 	});
@@ -100,54 +99,7 @@ const DEBUG = true;
 		return workweeks.map((el) => el.id);
 	});
 
-	await page.click(`#${workweekIds[0]}`);
-	await screenshot(page, `toggle_workweek_${0 + 1}`);
-
-	// Get time entries
-	const timeEntryIds = await page.evaluate((id: string) => {
-		const workweek = Array.from(
-			document.querySelectorAll("mat-expansion-panel")
-		).find((el) => el.querySelector(`[id='${id}']`));
-		const timeEntries = workweek
-			? Array.from(workweek.querySelectorAll("[id^='evv-time-entry']")).filter(
-					(el) => el.querySelector("input")
-			  )
-			: [];
-		return timeEntries.map((el) => el.id);
-	}, workweekIds[0]);
-
-	await scrollIntoView(page, `#${timeEntryIds[0]}`);
-
-	// Get input ids
-	const inputIds = await page.evaluate((id: string) => {
-		const timeEntry = document.querySelector(`#${id}`);
-		// const timeEntryDate = timeEntry
-		// 	?.querySelector<HTMLElement>("[id^='workweekdays']")
-		// 	?.innerText.split(/\s+/)[1];
-
-		// Check if you worked that day first before grabbing ids
-
-		const hoursId = timeEntry?.querySelector("input[id^='hours']")?.id;
-		const minutesId = timeEntry?.querySelector("input[id^='minutes']")?.id;
-		const startId = timeEntry?.querySelector("input[id^='starttime']")?.id;
-		const endId = timeEntry?.querySelector("input[id^='endtime']")?.id;
-		const locationId = timeEntry?.querySelector(
-			"mat-select[id^='locationSelect']"
-		)?.id;
-
-		return { hoursId, minutesId, startId, endId, locationId };
-	}, timeEntryIds[0]);
-
-	console.log(inputIds);
-
-	// Fill out form for time entry
-	await fillTimeEntry(page, {
-		hours: { id: inputIds.hoursId, text: "2" },
-		minutes: { id: inputIds.minutesId, text: "00" },
-		start: { id: inputIds.startId, text: "09:00AM" },
-		end: { id: inputIds.endId, text: "11:00AM" },
-		location: { id: inputIds.locationId, text: "home" },
-	});
+	await fillWorkweek(page, workweekIds[0]);
 
 	// Logout
 	await logout(page);

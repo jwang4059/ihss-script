@@ -9,7 +9,11 @@
 	"parserOptions": { "project": "./tsconfig.json" },
 	"plugins": ["@typescript-eslint"],
 	"root": true,
-	"rules": { "no-console": "off" },
+	"rules": {
+		"no-console": "off",
+		"no-restricted-syntax": "off",
+		"no-await-in-loop": "off"
+	},
 	"settings": {
 		"import/resolver": {
 			"node": {
