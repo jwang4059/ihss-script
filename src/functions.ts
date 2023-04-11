@@ -33,7 +33,7 @@ const scrollIntoView = async (page: Page, selector: string) => {
 	await element?.evaluate((el) => el.scrollIntoView());
 };
 
-const beforeAll = () => {
+const initialSetup = () => {
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
@@ -55,6 +55,13 @@ const logout = async (page: Page) => {
 	await page.click('[aria-label="Logout"]');
 	await screenshot(page, "logout");
 	console.log("Logged out successfully.");
+};
+
+const selectTimeEntry = async (page: Page) => {
+	await screenshot(page, "display_provider_home_page");
+
+	await page.waitForSelector("#timecardEntry");
+	await page.click("#timecardEntry");
 };
 
 const enterInput = async (page: Page, selector?: string, text?: string) => {
@@ -189,12 +196,104 @@ const fillWorkweek = async (page: Page, workweekId: string) => {
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
 
+const validateRecipient = async (page: Page, recipientName: string) => {
+	await page.waitForFunction(
+		(name: string) =>
+			document
+				.querySelector<HTMLElement>("#recipient-name")
+				?.innerText.trim()
+				.toLowerCase() === name,
+		{},
+		recipientName
+	);
+
+	await screenshot(page, `display_${recipientName.split(" ").join("_")}_page`);
+};
+
+const selectPayPeriod = async (page: Page) => {
+	// Toggle pay period panel
+	await page.waitForSelector("#payPerdiodSelect");
+	await page.click("#payPerdiodSelect");
+
+	// Get pay period option id
+	await page.waitForSelector("#payPerdiodSelect-panel");
+	const optionId = await page.evaluate(() => {
+		const options = Array.from(
+			document?.querySelectorAll("#payPerdiodSelect-panel mat-option")
+		);
+		const target = options.find(
+			(el) =>
+				new Date(
+					(el as HTMLElement).innerText.split("-")[0].trim()
+				).getDate() === 16
+		);
+		return target?.id;
+	});
+
+	// Select pay period option
+	await page.click(`#${optionId}`);
+	await screenshot(page, "select_pay_period");
+};
+
+const selectRecipient = async (page: Page, recipientName: string) => {
+	await page.waitForSelector("text/Recipient Selection");
+	await screenshot(page, "display_recipient_selection_page");
+
+	// Get recipient id
+	await page.waitForSelector("[id^='recip-card']");
+	const recipientButtonId = await page.evaluate((name: string) => {
+		// Get recipients
+		const recipientCards = Array.from(
+			document.querySelectorAll("[id^='recip-card']")
+		);
+
+		// Get desired recipient id
+		const recipientCard = recipientCards.find(
+			(el) =>
+				el
+					?.querySelector<HTMLElement>("[id^='recipient-name']")
+					?.innerText.trim()
+					.toLowerCase() === name
+		);
+		return recipientCard?.querySelector("button")?.id;
+	}, recipientName);
+
+	// Click recipient
+	await page.click(`#${recipientButtonId}`);
+};
+
+const fillTimesheet = async (page: Page, name: string) => {
+	// Select recipient
+	await selectRecipient(page, name);
+
+	// Validate recipient
+	await validateRecipient(page, name);
+
+	// Select pay period
+	await selectPayPeriod(page);
+
+	// Get workweek id
+	await page.waitForSelector("mat-expansion-panel");
+	const workweekIds = await page.evaluate(() => {
+		const workweeks = Array.from(
+			document.querySelectorAll("mat-expansion-panel-header")
+		);
+		return workweeks.map((el) => el.id);
+	});
+
+	// Fill workweek
+	for (const workweekId of workweekIds) {
+		await fillWorkweek(page, workweekId);
+	}
+};
+
 export {
-	beforeAll,
+	initialSetup,
 	handleLogging,
 	screenshot,
 	scrollIntoView,
 	login,
 	logout,
-	fillWorkweek,
+	selectTimeEntry,
+	fillTimesheet,
 };
