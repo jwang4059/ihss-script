@@ -46,22 +46,91 @@ const login = async (page: Page) => {
 	await screenshot(page, "input_user_credentials");
 
 	// Login
-	await page.waitForSelector("#login");
-	await page.click("#login");
+	const loginButton = await page.waitForSelector("#login");
+	await loginButton?.click();
+
+	// Verify login to home page
+	await page.waitForSelector("text/Home");
+	await screenshot(page, "display_provider_home_page");
 };
 
 const logout = async (page: Page) => {
-	await page.waitForSelector('[aria-label="Logout"]');
-	await page.click('[aria-label="Logout"]');
+	// Logout
+	const logoutButton = await page.waitForSelector("aria/Logout");
+	await logoutButton?.click();
+
+	// Verify logout
+	await page.waitForSelector("text/Login to Your Account");
 	await screenshot(page, "logout");
+
+	// Log to terminal
 	console.log("Logged out successfully.");
 };
 
-const selectTimeEntry = async (page: Page) => {
-	await screenshot(page, "display_provider_home_page");
-
+const navigateToRecipientSelection = async (page: Page) => {
+	// Navigate to recipient selection
 	await page.waitForSelector("#timecardEntry");
 	await page.click("#timecardEntry");
+
+	// Wait for page to load
+	await page.waitForSelector("text/Recipient Selection");
+	await screenshot(page, "display_recipient_selection_page");
+};
+
+const selectRecipient = async (page: Page, recipientName: string) => {
+	// Get recipient id
+	await page.waitForSelector("[id^='recip-card']");
+	const recipientButtonId = await page.evaluate((name: string) => {
+		// Get recipients
+		const recipientCards = Array.from(
+			document.querySelectorAll("[id^='recip-card']")
+		);
+
+		// Get desired recipient id
+		const recipientCard = recipientCards.find(
+			(el) =>
+				el
+					?.querySelector<HTMLElement>("[id^='recipient-name']")
+					?.innerText.trim()
+					.toLowerCase() === name.trim().toLowerCase()
+		);
+		return recipientCard?.querySelector("button")?.id;
+	}, recipientName);
+
+	// Click recipient
+	await page.click(`#${recipientButtonId}`);
+
+	// Verify recipient
+	await page.waitForSelector(`text/${recipientName.toUpperCase()}`);
+	await screenshot(page, `display_${recipientName.split(" ").join("_")}_page`);
+};
+
+const selectPayPeriod = async (page: Page) => {
+	// Toggle pay period panel
+	const select = await page.waitForSelector("#payPerdiodSelect");
+	await select?.click();
+
+	// Get pay period option id
+	await page.waitForSelector("#payPerdiodSelect-panel");
+	const optionId = await page.evaluate(() => {
+		const options = Array.from(
+			document?.querySelectorAll("#payPerdiodSelect-panel mat-option")
+		);
+		const target = options.find(
+			(el) =>
+				new Date(
+					(el as HTMLElement).innerText.split("-")[0].trim()
+				).getDate() === 16
+		);
+		return target?.id;
+	});
+
+	// Select pay period option
+	await page.click(`#${optionId}`);
+
+	// Verify option selected
+	await page.waitForSelector("#payPerdiodSelect-panel", { hidden: true });
+	await screenshot(page, "select_pay_period");
 };
 
 const enterInput = async (page: Page, selector?: string, text?: string) => {
@@ -78,17 +147,20 @@ const selectLocation = async (
 	location?: string
 ) => {
 	// Click select and wait for options
+	await page.waitForSelector(`#${locationId}`);
 	await page.click(`#${locationId}`);
-	await page.waitForSelector(`#${locationId}-panel`);
 
 	// Get id for option
+	await page.waitForSelector(`#${locationId}-panel`);
 	const optionId = await page.evaluate(
 		(selector: string, target: string) => {
 			const options = Array.from(
 				document.querySelectorAll<HTMLElement>(selector)
 			);
-			return options.find((el) => el.innerText.trim().toLowerCase() === target)
-				?.id;
+			return options.find(
+				(el) =>
+					el.innerText.trim().toLowerCase() === target.trim().toLowerCase()
+			)?.id;
 		},
 		`#${locationId}-panel mat-option`,
 		location || "home"
@@ -96,9 +168,11 @@ const selectLocation = async (
 
 	// Select option
 	await page.click(`#${optionId}`);
+	await page.waitForSelector(`#${locationId}-panel`, { hidden: true });
 };
 
 const getTimeEntryIds = async (page: Page, workweekId: string) => {
+	await page.waitForSelector("mat-expansion-panel");
 	const timeEntryIds = await page.evaluate((id: string) => {
 		const workweek = Array.from(
 			document.querySelectorAll("mat-expansion-panel")
@@ -116,6 +190,7 @@ const getTimeEntryIds = async (page: Page, workweekId: string) => {
 
 const getTimeEntryInputIds = async (page: Page, timeEntryId: string) => {
 	// Get input ids
+	await page.waitForSelector(`#${timeEntryId}`);
 	const inputIds = await page.evaluate((id: string) => {
 		const timeEntry = document.querySelector(`#${id}`);
 		// const timeEntryDate = timeEntry
@@ -184,7 +259,11 @@ const fillTimeEntry = async (page: Page, timeEntryId: string) => {
 
 const fillWorkweek = async (page: Page, workweekId: string) => {
 	// Toggle workweek panel
-	await page.click(`#${workweekId}`);
+	const workweekToggle = await page.waitForSelector(`#${workweekId}`);
+	await workweekToggle?.click();
+
+	// Wait for panel
+	await page.waitForSelector(".mat-expansion-panel-body");
 	await screenshot(page, `toggle_workweek_${workweekId}`);
 
 	// Fill time entries
@@ -196,83 +275,14 @@ const fillWorkweek = async (page: Page, workweekId: string) => {
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
 
-const validateRecipient = async (page: Page, recipientName: string) => {
-	await page.waitForFunction(
-		(name: string) =>
-			document
-				.querySelector<HTMLElement>("#recipient-name")
-				?.innerText.trim()
-				.toLowerCase() === name,
-		{},
-		recipientName
-	);
-
-	await screenshot(page, `display_${recipientName.split(" ").join("_")}_page`);
-};
-
-const selectPayPeriod = async (page: Page) => {
-	// Toggle pay period panel
-	await page.waitForSelector("#payPerdiodSelect");
-	await page.click("#payPerdiodSelect");
-
-	// Get pay period option id
-	await page.waitForSelector("#payPerdiodSelect-panel");
-	const optionId = await page.evaluate(() => {
-		const options = Array.from(
-			document?.querySelectorAll("#payPerdiodSelect-panel mat-option")
-		);
-		const target = options.find(
-			(el) =>
-				new Date(
-					(el as HTMLElement).innerText.split("-")[0].trim()
-				).getDate() === 16
-		);
-		return target?.id;
-	});
-
-	// Select pay period option
-	await page.click(`#${optionId}`);
-	await screenshot(page, "select_pay_period");
-};
-
-const selectRecipient = async (page: Page, recipientName: string) => {
-	await page.waitForSelector("text/Recipient Selection");
-	await screenshot(page, "display_recipient_selection_page");
-
-	// Get recipient id
-	await page.waitForSelector("[id^='recip-card']");
-	const recipientButtonId = await page.evaluate((name: string) => {
-		// Get recipients
-		const recipientCards = Array.from(
-			document.querySelectorAll("[id^='recip-card']")
-		);
-
-		// Get desired recipient id
-		const recipientCard = recipientCards.find(
-			(el) =>
-				el
-					?.querySelector<HTMLElement>("[id^='recipient-name']")
-					?.innerText.trim()
-					.toLowerCase() === name
-		);
-		return recipientCard?.querySelector("button")?.id;
-	}, recipientName);
-
-	// Click recipient
-	await page.click(`#${recipientButtonId}`);
-};
-
 const fillTimesheet = async (page: Page, name: string) => {
 	// Select recipient
 	await selectRecipient(page, name);
 
-	// Validate recipient
-	await validateRecipient(page, name);
-
 	// Select pay period
 	await selectPayPeriod(page);
 
-	// Get workweek id
+	// Get workweek ids
 	await page.waitForSelector("mat-expansion-panel");
 	const workweekIds = await page.evaluate(() => {
 		const workweeks = Array.from(
@@ -281,10 +291,18 @@ const fillTimesheet = async (page: Page, name: string) => {
 		return workweeks.map((el) => el.id);
 	});
 
-	// Fill workweek
+	// Fill each workweeks
 	for (const workweekId of workweekIds) {
 		await fillWorkweek(page, workweekId);
 	}
+
+	// Go back to previous page
+	const backButton = await page.waitForSelector("#backarrow");
+	backButton?.click();
+
+	// Wait for page to load
+	await page.waitForSelector("text/Recipient Selection");
+	await screenshot(page, "display_recipient_selection_page");
 };
 
 export {
@@ -294,6 +312,6 @@ export {
 	scrollIntoView,
 	login,
 	logout,
-	selectTimeEntry,
+	navigateToRecipientSelection,
 	fillTimesheet,
 };

@@ -6,7 +6,7 @@ import {
 	screenshot,
 	login,
 	logout,
-	selectTimeEntry,
+	navigateToRecipientSelection,
 	fillTimesheet,
 } from "./functions.js";
 
@@ -29,11 +29,10 @@ dotenv.config();
 
 	await login(page);
 
-	await selectTimeEntry(page);
+	await navigateToRecipientSelection(page);
 
 	await fillTimesheet(page, process.env.NAME as string);
 
-	// Logout
 	await logout(page);
 
 	await browser.close();
