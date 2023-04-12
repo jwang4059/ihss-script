@@ -7,8 +7,8 @@ import {
 	login,
 	logout,
 	navigateToRecipientSelection,
-	fillTimesheet,
 } from "./functions.js";
+import fillTimesheet from "./timesheet.js";
 
 dotenv.config();
 
@@ -22,16 +22,22 @@ dotenv.config();
 	handleLogging(page);
 
 	await page.goto("https://etimesheets.ihss.ca.gov/login");
-
-	// Set screen size
 	await page.setViewport({ width: 1080, height: 1024 });
+
+	await page.waitForSelector("text/Login to Your Account");
 	await screenshot(page, "display_ihss_login_page");
 
 	await login(page);
 
 	await navigateToRecipientSelection(page);
 
-	await fillTimesheet(page, process.env.NAME as string);
+	const names = [
+		process.env.NAME1 as string,
+		process.env.NAME2 as string,
+		process.env.NAME3 as string,
+	];
+
+	for (const name of names) await fillTimesheet(page, name);
 
 	await logout(page);
 
