@@ -1,5 +1,41 @@
 import { Page } from "puppeteer";
 import { scrollIntoView, screenshot } from "./functions.js";
+import data from "../data/recipients.json" assert { type: "json" };
+
+type InputType = { id?: string; text?: string };
+
+type TimeEntryType = {
+	hours?: string;
+	minutes?: string;
+	start?: string;
+	end?: string;
+	location?: string;
+	days?: number[];
+};
+
+type TimeEntryMapType = {
+	[key: string]: TimeEntryType;
+};
+
+const RecipientsExceptionMap: { [key: string]: TimeEntryMapType } = {};
+
+const getExceptionMap = (name: string) => {
+	const { exceptions }: { exceptions: TimeEntryType[] } =
+		data.recipients[name as keyof typeof data.recipients];
+
+	const map: TimeEntryMapType = {};
+
+	for (const exception of exceptions) {
+		const { days, ...rest } = exception;
+		if (days) {
+			for (const day of days) {
+				map[day] = { ...rest };
+			}
+		}
+	}
+
+	return map;
+};
 
 const selectRecipient = async (page: Page, recipientName: string) => {
 	// Get recipient id
@@ -31,7 +67,7 @@ const selectRecipient = async (page: Page, recipientName: string) => {
 
 const handlePopup = async (page: Page) => {
 	try {
-		await page.waitForSelector("mat-dialog-container");
+		await page.waitForSelector("mat-dialog-container", { timeout: 5000 });
 	} catch (e) {
 		// Return if pop up not found
 		return;
@@ -55,7 +91,7 @@ const selectPayPeriod = async (page: Page) => {
 
 	// Get pay period option id
 	await page.waitForSelector("#payPerdiodSelect-panel");
-	const optionId = await page.evaluate(() => {
+	const optionId = await page.evaluate((startDate: number) => {
 		const options = Array.from(
 			document?.querySelectorAll("#payPerdiodSelect-panel mat-option")
 		);
@@ -63,17 +99,17 @@ const selectPayPeriod = async (page: Page) => {
 			(el) =>
 				new Date(
 					(el as HTMLElement).innerText.split("-")[0].trim()
-				).getDate() === 16
+				).getDate() === startDate
 		);
 		return target?.id;
-	});
+	}, data.startDate);
 
 	// Select pay period option
 	await page.click(`#${optionId}`);
 
 	// Verify option selected
 	await page.waitForSelector("#payPerdiodSelect-panel", { hidden: true });
-	await screenshot(page, "select_pay_period");
+	await screenshot(page, `select_pay_period_startDate_${data.startDate}`);
 };
 
 const enterInput = async (page: Page, selector?: string, text?: string) => {
@@ -131,16 +167,14 @@ const getTimeEntryIds = async (page: Page, workweekId: string) => {
 	return timeEntryIds;
 };
 
-const getTimeEntryInputIds = async (page: Page, timeEntryId: string) => {
+const getTimeEntryInfo = async (page: Page, timeEntryId: string) => {
 	// Get input ids
 	await page.waitForSelector(`#${timeEntryId}`);
 	const inputIds = await page.evaluate((id: string) => {
 		const timeEntry = document.querySelector(`#${id}`);
-		// const timeEntryDate = timeEntry
-		// 	?.querySelector<HTMLElement>("[id^='workweekdays']")
-		// 	?.innerText.split(/\s+/)[1];
-
-		// Check if you worked that day first before grabbing ids
+		const timeEntryDate = timeEntry?.querySelector<HTMLElement>(
+			"[id^='workweekdays']"
+		)?.innerText;
 
 		const hoursId = timeEntry?.querySelector("input[id^='hours']")?.id;
 		const minutesId = timeEntry?.querySelector("input[id^='minutes']")?.id;
@@ -150,13 +184,11 @@ const getTimeEntryInputIds = async (page: Page, timeEntryId: string) => {
 			"mat-select[id^='locationSelect']"
 		)?.id;
 
-		return { hoursId, minutesId, startId, endId, locationId };
+		return { timeEntryDate, hoursId, minutesId, startId, endId, locationId };
 	}, timeEntryId);
 
 	return inputIds;
 };
-
-type InputType = { id?: string; text?: string };
 
 const fillTimeEntryInputs = async (
 	page: Page,
@@ -181,26 +213,52 @@ const fillTimeEntryInputs = async (
 	await selectLocation(page, location.id, location.text);
 };
 
-const fillTimeEntry = async (page: Page, timeEntryId: string) => {
+const fillTimeEntry = async (page: Page, timeEntryId: string, name: string) => {
 	// Scroll to time entry
 	await scrollIntoView(page, `#${timeEntryId}`);
 
 	// Get input ids
-	const inputIds = await getTimeEntryInputIds(page, timeEntryId);
+	const inputIds = await getTimeEntryInfo(page, timeEntryId);
+	const { timeEntryDate, hoursId, minutesId, startId, endId, locationId } =
+		inputIds;
+	const timeEntryArr = timeEntryDate
+		? timeEntryDate.toLowerCase().split(/\s+/)
+		: [];
+	const [day, date] = timeEntryArr;
 
-	// Fill out form for time entry
-	await fillTimeEntryInputs(page, {
-		hours: { id: inputIds.hoursId, text: "2" },
-		minutes: { id: inputIds.minutesId, text: "00" },
-		start: { id: inputIds.startId, text: "09:00AM" },
-		end: { id: inputIds.endId, text: "11:00AM" },
-		location: { id: inputIds.locationId, text: "home" },
-	});
+	const recipient = data.recipients[name as keyof typeof data.recipients];
+
+	const isWeekend = day === "saturday" || day === "sunday";
+	const dateNum = parseInt(date, 10);
+
+	// Rework into a map (date => timesheetObj)
+	// const exceptions = new Set(
+	// 	recipient.exceptions.reduce(
+	// 		(prev, curr) => prev.concat(curr.days),
+	// 		[] as number[]
+	// 	)
+	// );
+
+	if (dateNum in RecipientsExceptionMap[name]) {
+		console.log("Handle Exception");
+	} else if (!isWeekend || (isWeekend && recipient.weekends)) {
+		// Get default values
+		const { hours, minutes, start, end, location } = recipient.default;
+
+		// Fill out form for time entry
+		await fillTimeEntryInputs(page, {
+			hours: { id: hoursId, text: hours },
+			minutes: { id: minutesId, text: minutes },
+			start: { id: startId, text: start },
+			end: { id: endId, text: end },
+			location: { id: locationId, text: location },
+		});
+	}
 
 	await screenshot(page, `filled_timeEntry_${timeEntryId}`);
 };
 
-const fillWorkweek = async (page: Page, workweekId: string) => {
+const fillWorkweek = async (page: Page, workweekId: string, name: string) => {
 	// Toggle workweek panel
 	const workweekToggle = await page.waitForSelector(`#${workweekId}`);
 	await workweekToggle?.click();
@@ -212,7 +270,7 @@ const fillWorkweek = async (page: Page, workweekId: string) => {
 	// Fill time entries
 	const timeEntryIds = await getTimeEntryIds(page, workweekId);
 	for (const timeEntryId of timeEntryIds) {
-		await fillTimeEntry(page, timeEntryId);
+		await fillTimeEntry(page, timeEntryId, name);
 	}
 
 	await screenshot(page, `filled_workweek_${workweekId}`);
@@ -231,6 +289,10 @@ const fillTimesheet = async (page: Page, name: string) => {
 	// Handle pop up 2
 	await handlePopup(page);
 
+	// Set up exceptions map
+	RecipientsExceptionMap[name] = getExceptionMap(name);
+	console.log(RecipientsExceptionMap);
+
 	// Get workweek ids
 	await page.waitForSelector("mat-expansion-panel");
 	const workweekIds = await page.evaluate(() => {
@@ -242,7 +304,7 @@ const fillTimesheet = async (page: Page, name: string) => {
 
 	// Fill each workweeks
 	for (const workweekId of workweekIds) {
-		await fillWorkweek(page, workweekId);
+		await fillWorkweek(page, workweekId, name);
 	}
 
 	// Go back to previous page
@@ -254,4 +316,9 @@ const fillTimesheet = async (page: Page, name: string) => {
 	await screenshot(page, "display_recipient_selection_page");
 };
 
-export default fillTimesheet;
+const fillTimesheets = async (page: Page) => {
+	const names = Object.keys(data.recipients);
+	for (const name of names) await fillTimesheet(page, name);
+};
+
+export default fillTimesheets;

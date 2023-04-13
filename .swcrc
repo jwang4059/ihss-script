@@ -6,7 +6,10 @@
 			"decorators": false,
 			"dynamicImport": false
 		},
-		"target": "es5"
+		"target": "esnext",
+		"experimental": {
+			"keepImportAssertions": true
+		}
 	},
 	"module": {
 		"type": "es6",

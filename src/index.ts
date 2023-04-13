@@ -8,7 +8,7 @@ import {
 	logout,
 	navigateToRecipientSelection,
 } from "./functions.js";
-import fillTimesheet from "./timesheet.js";
+import fillTimesheets from "./timesheet.js";
 
 dotenv.config();
 
@@ -31,13 +31,7 @@ dotenv.config();
 
 	await navigateToRecipientSelection(page);
 
-	const names = [
-		process.env.NAME1 as string,
-		process.env.NAME2 as string,
-		process.env.NAME3 as string,
-	];
-
-	for (const name of names) await fillTimesheet(page, name);
+	await fillTimesheets(page);
 
 	await logout(page);
 

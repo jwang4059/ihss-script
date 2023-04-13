@@ -73,7 +73,8 @@
 		"forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */,
 		"allowImportingTsExtensions": true,
 		"verbatimModuleSyntax": true,
-		"useDefineForClassFields": false
+		"useDefineForClassFields": false,
+		"resolveJsonModule": true
 	},
 	"include": ["**/*.mts", "**/*.ts"],
 	"exclude": ["node_modules"]
