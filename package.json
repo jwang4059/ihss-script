@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
+    "approve": "node dist/approve.js",
     "build": "npx swc ./src -d dist",
     "watch": "npx swc ./src -d dist -w",
     "prepare": "husky install"

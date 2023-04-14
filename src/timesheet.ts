@@ -150,9 +150,9 @@ const selectLocation = async (
 	await page.waitForSelector(`#${locationId}-panel`, { hidden: true });
 };
 
-const getTimeEntryIds = async (page: Page, workweekId: string) => {
+const getWorkweekElementIds = async (page: Page, workweekId: string) => {
 	await page.waitForSelector("mat-expansion-panel");
-	const timeEntryIds = await page.evaluate((id: string) => {
+	const workweekElementIds = await page.evaluate((id: string) => {
 		const workweek = Array.from(
 			document.querySelectorAll("mat-expansion-panel")
 		).find((el) => el.querySelector(`[id='${id}']`));
@@ -161,10 +161,14 @@ const getTimeEntryIds = async (page: Page, workweekId: string) => {
 					(el) => el.querySelector("input")
 			  )
 			: [];
-		return timeEntries.map((el) => el.id);
+		const saveButton = workweek?.querySelector("[id^='save-timesheet-button']");
+		return {
+			timeEntryIds: timeEntries.map((el) => el.id),
+			saveButtonId: saveButton?.id,
+		};
 	}, workweekId);
 
-	return timeEntryIds;
+	return workweekElementIds;
 };
 
 const getTimeEntryInfo = async (page: Page, timeEntryId: string) => {
@@ -227,20 +231,21 @@ const fillTimeEntry = async (page: Page, timeEntryId: string, name: string) => {
 	const [day, date] = timeEntryArr;
 
 	const recipient = data.recipients[name as keyof typeof data.recipients];
-
 	const isWeekend = day === "saturday" || day === "sunday";
-	const dateNum = parseInt(date, 10);
 
-	// Rework into a map (date => timesheetObj)
-	// const exceptions = new Set(
-	// 	recipient.exceptions.reduce(
-	// 		(prev, curr) => prev.concat(curr.days),
-	// 		[] as number[]
-	// 	)
-	// );
+	if (date in RecipientsExceptionMap[name]) {
+		// Get default values
+		const { hours, minutes, start, end, location } =
+			RecipientsExceptionMap[name][date];
 
-	if (dateNum in RecipientsExceptionMap[name]) {
-		console.log("Handle Exception");
+		// Fill out form for time entry
+		await fillTimeEntryInputs(page, {
+			hours: { id: hoursId, text: hours },
+			minutes: { id: minutesId, text: minutes },
+			start: { id: startId, text: start },
+			end: { id: endId, text: end },
+			location: { id: locationId, text: location },
+		});
 	} else if (!isWeekend || (isWeekend && recipient.weekends)) {
 		// Get default values
 		const { hours, minutes, start, end, location } = recipient.default;
@@ -268,10 +273,18 @@ const fillWorkweek = async (page: Page, workweekId: string, name: string) => {
 	await screenshot(page, `toggle_workweek_${workweekId}`);
 
 	// Fill time entries
-	const timeEntryIds = await getTimeEntryIds(page, workweekId);
+	const { timeEntryIds, saveButtonId } = await getWorkweekElementIds(
+		page,
+		workweekId
+	);
 	for (const timeEntryId of timeEntryIds) {
 		await fillTimeEntry(page, timeEntryId, name);
 	}
+
+	console.log({ saveButtonId });
+	// Save
+	// const saveButton = await page.waitForSelector(`#${saveButtonId}`)
+	// await saveButton?.click();
 
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
@@ -291,7 +304,6 @@ const fillTimesheet = async (page: Page, name: string) => {
 
 	// Set up exceptions map
 	RecipientsExceptionMap[name] = getExceptionMap(name);
-	console.log(RecipientsExceptionMap);
 
 	// Get workweek ids
 	await page.waitForSelector("mat-expansion-panel");

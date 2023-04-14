@@ -37,12 +37,12 @@ const initialSetup = () => {
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
-const login = async (page: Page) => {
+const login = async (page: Page, username: string, password: string) => {
 	// Enter user credentials
 	await page.waitForSelector("#login-body");
 	await scrollIntoView(page, "#input-user-name");
-	await page.type("#input-user-name", process.env.IHSS_USERNAME as string);
-	await page.type("#input-password", process.env.IHSS_PASSWORD as string);
+	await page.type("#input-user-name", username);
+	await page.type("#input-password", password);
 	await screenshot(page, "input_user_credentials");
 
 	// Login
@@ -51,7 +51,7 @@ const login = async (page: Page) => {
 
 	// Verify login to home page
 	await page.waitForSelector("text/Home");
-	await screenshot(page, "display_provider_home_page");
+	await screenshot(page, `display_home_page`);
 };
 
 const logout = async (page: Page) => {
@@ -71,14 +71,16 @@ const logout = async (page: Page) => {
 	}
 };
 
-const navigateToRecipientSelection = async (page: Page) => {
-	// Navigate to recipient selection
-	await page.waitForSelector("#timecardEntry");
-	await page.click("#timecardEntry");
+const clickText = async (page: Page, text: string, expected?: string) => {
+	// Navigate to selection page
+	const pressable = await page.waitForSelector(`text/${text}`);
+	await pressable?.click();
 
 	// Wait for page to load
-	await page.waitForSelector("text/Recipient Selection");
-	await screenshot(page, "display_recipient_selection_page");
+	if (expected) {
+		await page.waitForSelector(`text/${expected}`);
+		await screenshot(page, `display_${expected}`);
+	}
 };
 
 export {
@@ -88,5 +90,5 @@ export {
 	scrollIntoView,
 	login,
 	logout,
-	navigateToRecipientSelection,
+	clickText,
 };

@@ -8,7 +8,8 @@ import {
 	logout,
 	clickText,
 } from "./functions.js";
-import fillTimesheets from "./timesheet.js";
+
+import data from "../data/recipients.json" assert { type: "json" };
 
 dotenv.config();
 
@@ -27,17 +28,11 @@ dotenv.config();
 	await page.waitForSelector("text/Login to Your Account");
 	await screenshot(page, "display_ihss_login_page");
 
-	await login(
-		page,
-		process.env.IHSS_USERNAME as string,
-		process.env.IHSS_PASSWORD as string
-	);
-
-	await clickText(page, "TIMESHEET ENTRY", "Recipient Selection");
-
-	await fillTimesheets(page);
-
-	await logout(page);
+	for (const { username, password } of Object.values(data.recipients)) {
+		await login(page, username as string, password as string);
+		await clickText(page, "TIMESHEET REVIEW", "Provider Selection");
+		await logout(page);
+	}
 
 	await browser.close();
 })();
