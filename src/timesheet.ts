@@ -281,10 +281,9 @@ const fillWorkweek = async (page: Page, workweekId: string, name: string) => {
 		await fillTimeEntry(page, timeEntryId, name);
 	}
 
-	console.log({ saveButtonId });
 	// Save
-	// const saveButton = await page.waitForSelector(`#${saveButtonId}`)
-	// await saveButton?.click();
+	const saveButton = await page.waitForSelector(`#${saveButtonId}`);
+	await saveButton?.click();
 
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
