@@ -37,6 +37,22 @@ const initialSetup = () => {
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 };
 
+const handlePasswordExpiration = async (page: Page, username: string) => {
+	try {
+		await page.waitForSelector("text/Password Expiration", { timeout: 5000 });
+	} catch (e) {
+		// Return if pop up not found
+		return;
+	}
+
+	await screenshot(page, `password_expiration_${username}`);
+	console.log(`*** Need to update password for ${username} ***`);
+
+	// Click no button
+	const laterButton = await page.waitForSelector("text/Maybe Later");
+	await laterButton?.click();
+};
+
 const login = async (page: Page, username: string, password: string) => {
 	// Enter user credentials
 	await page.waitForSelector("#login-body");
@@ -48,6 +64,8 @@ const login = async (page: Page, username: string, password: string) => {
 	// Login
 	const loginButton = await page.waitForSelector("#login");
 	await loginButton?.click();
+
+	await handlePasswordExpiration(page, username);
 
 	// Verify login to home page
 	await page.waitForSelector("text/Home");
