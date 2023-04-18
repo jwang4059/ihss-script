@@ -1,5 +1,5 @@
 import * as dotenv from "dotenv";
-import puppeteer from "puppeteer";
+import puppeteer, { Page } from "puppeteer";
 import {
 	initialSetup,
 	handleLogging,
@@ -7,11 +7,31 @@ import {
 	login,
 	logout,
 	clickText,
+	selectPerson,
 } from "./functions.js";
 
 import data from "../data/recipients.json" assert { type: "json" };
 
 dotenv.config();
+
+const handleElectronicSignature = async (page: Page) => {
+	// Check agree to terms
+	const checkbox = await page.waitForSelector("#checkbox-input");
+	checkbox?.click();
+
+	// Click to electronically sign
+	const signButton = await page.waitForSelector(
+		"text/Electronically Sign Timesheet & Submit for Payment"
+	);
+	signButton?.click();
+
+	// Handle confirmation
+	await page.waitForSelector(
+		"text/This timesheet has been submitted for processing."
+	);
+	const okButton = await page.waitForSelector("text/OK");
+	okButton?.click();
+};
 
 (async () => {
 	initialSetup();
@@ -31,6 +51,9 @@ dotenv.config();
 	for (const { username, password } of Object.values(data.recipients)) {
 		await login(page, username as string, password as string);
 		await clickText(page, "TIMESHEET REVIEW", "Provider Selection");
+		await selectPerson(page, process.env.NAME as string);
+		await clickText(page, "Approve Timesheet", "Electronic Signature");
+		await handleElectronicSignature(page);
 		await logout(page);
 	}
 

@@ -314,6 +314,7 @@ const fillTimesheet = async (page: Page, name: string) => {
 	});
 
 	// Fill each workweeks
+	// >>> Workweek id changes, use something else
 	for (const workweekId of workweekIds) {
 		await fillWorkweek(page, workweekId, name);
 	}

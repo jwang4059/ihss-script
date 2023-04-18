@@ -101,6 +101,32 @@ const clickText = async (page: Page, text: string, expected?: string) => {
 	}
 };
 
+const selectPerson = async (page: Page, name: string) => {
+	// Get card id
+	await page.waitForSelector("mat-card");
+	const button = await page.evaluate((cardName: string) => {
+		// Get cards
+		const cards = Array.from(document.querySelectorAll("mat-card"));
+
+		// Get card with card name
+		const card = cards.find(
+			(el) =>
+				el
+					?.querySelector<HTMLElement>("mat-card-header")
+					?.innerText.trim()
+					.toLowerCase() === cardName.trim().toLowerCase()
+		);
+		return card?.querySelector("button")?.id;
+	}, name);
+
+	// Click cared button
+	await page.click(`#${button}`);
+
+	// Verify person
+	await page.waitForSelector(`text/${name.toUpperCase()}`);
+	await screenshot(page, `display_${name.split(" ").join("_")}_page`);
+};
+
 export {
 	initialSetup,
 	handleLogging,
@@ -109,4 +135,5 @@ export {
 	login,
 	logout,
 	clickText,
+	selectPerson,
 };
