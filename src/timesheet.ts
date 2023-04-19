@@ -1,5 +1,5 @@
 import { Page } from "puppeteer";
-import { scrollIntoView, screenshot } from "./functions.js";
+import { scrollIntoView, screenshot, selectPerson } from "./functions.js";
 import data from "../data/recipients.json" assert { type: "json" };
 
 type InputType = { id?: string; text?: string };
@@ -35,34 +35,6 @@ const getExceptionMap = (name: string) => {
 	}
 
 	return map;
-};
-
-const selectRecipient = async (page: Page, recipientName: string) => {
-	// Get recipient id
-	await page.waitForSelector("[id^='recip-card']");
-	const recipientButtonId = await page.evaluate((name: string) => {
-		// Get recipients
-		const recipientCards = Array.from(
-			document.querySelectorAll("[id^='recip-card']")
-		);
-
-		// Get desired recipient id
-		const recipientCard = recipientCards.find(
-			(el) =>
-				el
-					?.querySelector<HTMLElement>("[id^='recipient-name']")
-					?.innerText.trim()
-					.toLowerCase() === name.trim().toLowerCase()
-		);
-		return recipientCard?.querySelector("button")?.id;
-	}, recipientName);
-
-	// Click recipient
-	await page.click(`#${recipientButtonId}`);
-
-	// Verify recipient
-	await page.waitForSelector(`text/${recipientName.toUpperCase()}`);
-	await screenshot(page, `display_${recipientName.split(" ").join("_")}_page`);
 };
 
 const handlePopup = async (page: Page) => {
@@ -110,6 +82,16 @@ const selectPayPeriod = async (page: Page) => {
 	// Verify option selected
 	await page.waitForSelector("#payPerdiodSelect-panel", { hidden: true });
 	await screenshot(page, `select_pay_period_startDate_${data.startDate}`);
+};
+
+const getWorkweekId = async (page: Page, num: number) => {
+	const workweekId = await page.evaluate(
+		(weekNum: number) =>
+			document.querySelectorAll("mat-expansion-panel-header")[weekNum].id,
+		num
+	);
+
+	return workweekId;
 };
 
 const enterInput = async (page: Page, selector?: string, text?: string) => {
@@ -282,15 +264,15 @@ const fillWorkweek = async (page: Page, workweekId: string, name: string) => {
 	}
 
 	// Save
-	const saveButton = await page.waitForSelector(`#${saveButtonId}`);
-	await saveButton?.click();
+	// const saveButton = await page.waitForSelector(`#${saveButtonId}`);
+	// await saveButton?.click();
 
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
 
 const fillTimesheet = async (page: Page, name: string) => {
 	// Select recipient
-	await selectRecipient(page, name);
+	await selectPerson(page, name);
 
 	// Handle pop up 1
 	await handlePopup(page);
@@ -306,16 +288,14 @@ const fillTimesheet = async (page: Page, name: string) => {
 
 	// Get workweek ids
 	await page.waitForSelector("mat-expansion-panel");
-	const workweekIds = await page.evaluate(() => {
-		const workweeks = Array.from(
-			document.querySelectorAll("mat-expansion-panel-header")
-		);
-		return workweeks.map((el) => el.id);
-	});
+	const numOfWorkweeks = await page.evaluate(
+		() =>
+			Array.from(document.querySelectorAll("mat-expansion-panel-header")).length
+	);
 
 	// Fill each workweeks
-	// >>> Workweek id changes, use something else
-	for (const workweekId of workweekIds) {
+	for (let i = 0; i < numOfWorkweeks; i += 1) {
+		const workweekId = await getWorkweekId(page, i);
 		await fillWorkweek(page, workweekId, name);
 	}
 
