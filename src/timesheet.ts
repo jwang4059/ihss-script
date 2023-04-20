@@ -215,6 +215,7 @@ const fillTimeEntry = async (page: Page, timeEntryId: string, name: string) => {
 	const recipient = data.recipients[name as keyof typeof data.recipients];
 	const isWeekend = day === "saturday" || day === "sunday";
 
+	// Update location based on community value
 	if (date in RecipientsExceptionMap[name]) {
 		// Get default values
 		const { hours, minutes, start, end, location } =
@@ -226,7 +227,10 @@ const fillTimeEntry = async (page: Page, timeEntryId: string, name: string) => {
 			minutes: { id: minutesId, text: minutes },
 			start: { id: startId, text: start },
 			end: { id: endId, text: end },
-			location: { id: locationId, text: location },
+			location: {
+				id: locationId,
+				text: day === recipient.communityDay ? "community" : location,
+			},
 		});
 	} else if (!isWeekend || (isWeekend && recipient.weekends)) {
 		// Get default values
@@ -238,7 +242,10 @@ const fillTimeEntry = async (page: Page, timeEntryId: string, name: string) => {
 			minutes: { id: minutesId, text: minutes },
 			start: { id: startId, text: start },
 			end: { id: endId, text: end },
-			location: { id: locationId, text: location },
+			location: {
+				id: locationId,
+				text: day === recipient.communityDay ? "community" : location,
+			},
 		});
 	}
 
