@@ -271,8 +271,8 @@ const fillWorkweek = async (page: Page, workweekId: string, name: string) => {
 	}
 
 	// Save
-	// const saveButton = await page.waitForSelector(`#${saveButtonId}`);
-	// await saveButton?.click();
+	const saveButton = await page.waitForSelector(`#${saveButtonId}`);
+	await saveButton?.click();
 
 	await screenshot(page, `filled_workweek_${workweekId}`);
 };
