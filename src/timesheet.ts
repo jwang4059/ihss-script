@@ -85,6 +85,7 @@ const selectPayPeriod = async (page: Page) => {
 };
 
 const getWorkweekId = async (page: Page, num: number) => {
+	await page.waitForSelector("mat-expansion-panel-header");
 	const workweekId = await page.evaluate(
 		(weekNum: number) =>
 			document.querySelectorAll("mat-expansion-panel-header")[weekNum].id,
